@@ -1,0 +1,208 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "BucketName": {
+      "Description": "cloudtrail",
+      "Type": "String"
+    },
+    "TopicName": {
+      "Description": "Name of the SNS topic.",
+      "Type": "String",
+      "Default": ""
+    },
+    "IncludeGlobalServiceEvents": {
+      "Description": "Indicates whether the trail is publishing events from global services, such as IAM, to the log files.",
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ]
+    }
+  },
+  "Conditions": {
+    "UseSNSTopic": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "TopicName"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "Trail": {
+      "Type": "AWS::CloudTrail::Trail",
+      "Properties": {
+        "IncludeGlobalServiceEvents": {
+          "Ref": "IncludeGlobalServiceEvents"
+        },
+        "S3BucketName": {
+          "Ref": "BucketName"
+        },
+        "SnsTopicName": {
+          "Fn::If": [
+            "UseSNSTopic",
+            {
+              "Ref": "TopicName"
+            },
+            {
+              "Ref": "AWS::NoValue"
+            }
+          ]
+        },
+        "IsLogging": true
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "d6ee8db2-3892-46a7-83fc-5fab21cddeb2"
+        }
+      }
+    },
+    "cloudtrail": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {},
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "102a9e2a-7244-4c53-930e-b388c2081b4f"
+        }
+      }
+    },
+    "billing": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {},
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "9b3c13c8-b9cc-4ef4-90f3-b7795a0e97fb"
+        }
+      }
+    },
+    "IAMP4QLU3": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {},
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "28e0ae70-2a1d-4c32-84bf-6fffbae7d874",
+          "Statement": [
+     {
+         "Effect": "Allow",
+         "Action": [
+             "s3:Get*",
+             "s3:List*",
+             "s3:DeleteBucket"
+         ],
+         "Resource": "arn:aws:s3:::*"
+     },
+     {
+         "Sid": "1",
+         "Effect": "Allow",
+         "Action": [
+             "s3:CreateBucket"
+         ],
+         "Resource": [
+             "arn:aws:s3:::*"
+         ],
+         "Condition": {
+             "StringLikeIfExists": {
+                 "s3:LocationConstraint": "us-*"
+             }
+         }
+     }
+ ]
+        }
+      }
+    },
+    "IAMP1UVQ7": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {},
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "5368dba2-eac4-46ff-9676-a417f3569507",
+          "Statement": [
+     {
+         "Sid": "1",
+         "Effect": "Allow",
+         "Action": [
+             "ec2:*"
+         ],
+         "Resource": [
+             "*"
+         ],
+         "Condition": {
+             "StringLike": {
+                 "ec2:Region": [
+                     "us-*"
+                 ]
+             }
+         }
+     }
+ ]
+        }
+      }
+    }
+  },
+  "Metadata": {
+    "AWS::CloudFormation::Designer": {
+      "d6ee8db2-3892-46a7-83fc-5fab21cddeb2": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 60,
+          "y": 90
+        },
+        "z": 1,
+        "embeds": []
+      },
+      "102a9e2a-7244-4c53-930e-b388c2081b4f": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": -50,
+          "y": 90
+        },
+        "z": 0
+      },
+      "9b3c13c8-b9cc-4ef4-90f3-b7795a0e97fb": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": -163.41028868005623,
+          "y": 89.89225850254738
+        },
+        "z": 0
+      },
+      "28e0ae70-2a1d-4c32-84bf-6fffbae7d874": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 170,
+          "y": 90
+        },
+        "z": 0
+      },
+      "5368dba2-eac4-46ff-9676-a417f3569507": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 270,
+          "y": 90
+        },
+        "z": 0
+      }
+    }
+  }
+}

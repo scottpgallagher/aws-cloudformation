@@ -1,0 +1,199 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Metadata": {
+    "AWS::CloudFormation::Designer": {
+      "4320680a-dfeb-416d-a51c-d2b72f46d93e": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 378,
+          "y": 90
+        },
+        "z": 0,
+        "embeds": [],
+        "ismemberof": [
+          "bb6a822b-a4e1-4d71-b7bb-28d4a9d9425f"
+        ]
+      },
+      "bb6a822b-a4e1-4d71-b7bb-28d4a9d9425f": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 230,
+          "y": 90
+        },
+        "z": 0,
+        "embeds": []
+      },
+      "38a8232f-41c2-47c3-97d8-6cb5ddd6554b": {
+        "source": {
+          "id": "4320680a-dfeb-416d-a51c-d2b72f46d93e"
+        },
+        "target": {
+          "id": "bb6a822b-a4e1-4d71-b7bb-28d4a9d9425f"
+        },
+        "z": 1
+      },
+      "79156186-25b0-4674-a2ea-6206935fe504": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 380,
+          "y": 220
+        },
+        "z": 0,
+        "isconnectedto": [
+          "4320680a-dfeb-416d-a51c-d2b72f46d93e"
+        ],
+        "isassociatedwith": [
+          "8e456c6f-8023-4011-a344-0f85c22c33f7"
+        ]
+      },
+      "8c275832-497b-4779-9213-1ae996ab95e3": {
+        "source": {
+          "id": "79156186-25b0-4674-a2ea-6206935fe504"
+        },
+        "target": {
+          "id": "4320680a-dfeb-416d-a51c-d2b72f46d93e"
+        },
+        "z": 12
+      },
+      "8e456c6f-8023-4011-a344-0f85c22c33f7": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 500,
+          "y": 220
+        },
+        "z": 0
+      },
+      "e5abfdb2-94c4-4e62-b85c-22c368169755": {
+        "source": {
+          "id": "79156186-25b0-4674-a2ea-6206935fe504"
+        },
+        "target": {
+          "id": "8e456c6f-8023-4011-a344-0f85c22c33f7"
+        },
+        "z": 13
+      },
+      "8e6cce09-43e2-4bb5-b2ce-fc10497a38b6": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 230,
+          "y": 220
+        },
+        "z": 0,
+        "isassociatedwith": [
+          "79156186-25b0-4674-a2ea-6206935fe504"
+        ]
+      },
+      "7cb64429-bfb2-4572-8385-d9bc7ba4485a": {
+        "source": {
+          "id": "8e6cce09-43e2-4bb5-b2ce-fc10497a38b6"
+        },
+        "target": {
+          "id": "79156186-25b0-4674-a2ea-6206935fe504"
+        },
+        "z": 14
+      }
+    }
+  },
+  "Resources": {
+    "LB3B5K3": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "SecurityGroups": [
+          {
+            "Ref": "SG30FG5"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "4320680a-dfeb-416d-a51c-d2b72f46d93e"
+        }
+      }
+    },
+    "SG30FG5": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Allow http to client host",
+        "VpcId": {
+          "Ref": "myVPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "bb6a822b-a4e1-4d71-b7bb-28d4a9d9425f"
+        }
+      }
+    },
+    "ASG3YRAU": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "LoadBalancerNames": [
+          {
+            "Ref": "LB3B5K3"
+          }
+        ],
+        "LaunchConfigurationName": {
+          "Ref": "LC4XK67"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "79156186-25b0-4674-a2ea-6206935fe504"
+        }
+      }
+    },
+    "LC4XK67": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {},
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "8e456c6f-8023-4011-a344-0f85c22c33f7"
+        }
+      }
+    },
+    "SP55N1Z": {
+      "Type": "AWS::AutoScaling::ScalingPolicy",
+      "Properties": {
+        "AutoScalingGroupName": {
+          "Ref": "ASG3YRAU"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "8e6cce09-43e2-4bb5-b2ce-fc10497a38b6"
+        }
+      }
+    }
+  }
+}

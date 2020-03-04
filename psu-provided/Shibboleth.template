@@ -1,0 +1,771 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation example template creating a launch configuration and auto-scaling group that instantiates an Apache web server instance protected by Shibboleth single sign-on. To learn more about Shibboleth, visit https://shibboleth.net/. Penn State particpates in InCommon's federation, providing a secure and privacy-preserving trust fabric for research and higher eduction. To learn more about InCommon, visit https://www.incommon.org/.",
+  "Parameters": {
+    "InstanceType": {
+      "Description": "EC2 instance type that will be used as part of the web instance auto-scaling group",
+      "Type": "String",
+      "Default": "t2.medium",
+      "AllowedValues": [
+        "t1.micro",
+        "t2.nano",
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "g2.2xlarge",
+        "g2.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge",
+        "d2.xlarge",
+        "d2.2xlarge",
+        "d2.4xlarge",
+        "d2.8xlarge",
+        "hi1.4xlarge",
+        "hs1.8xlarge",
+        "cr1.8xlarge",
+        "cc2.8xlarge",
+        "cg1.4xlarge"
+      ],
+      "ConstraintDescription": "Must be a valid EC2 instance type"
+    },
+    "KeyPair": {
+      "Description": "SSH key used to log into the appropriate web server instances",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "ShibbolethSPEntityID": {
+      "Description": "The entity id associated with appropriate service provider. Note this Id must be registered with InCommon and included in the InCommon metadata. Example: https://example.website.org/shibboleth",
+      "Type": "String"
+    },
+    "HostName": {
+      "Description": "The host name that shibboleth will be protecting. Example: vitual.example.org",
+      "Type": "String"
+    },
+    "Scheme": {
+      "Description": "The scheme that will be used to protect the host. Default is https",
+      "Type": "String",
+      "Default": "HTTPS",
+      "AllowedValues": [
+        "HTTPS",
+        "HTTP"
+      ]
+    },
+    "Port": {
+      "Description": "Port host is listening for requests. Default is 443",
+      "Type": "Number",
+      "Default": "443"
+    },
+    "RemoteUserAttributeIdentifiers": {
+      "Description": "Attributes provided by the IDP that will map to the REMOTE_USER server variable",
+      "Type": "String",
+      "Default": "eppn persistent-id targeted-id"
+    },
+    "IDPEntityID": {
+      "Description": "Entity ID of the identity provider provided that users will authenticate. Default is Penn State's Shibboleth Identity Provider entity Id",
+      "Type": "String",
+      "Default": "urn:mace:incommon:psu.edu"
+    },
+    "IncommonMetadataProviderURL": {
+      "Description": "Url of signed metadata provided by InCommon. Default is InCommon provided metadata",
+      "Type": "String",
+      "Default": "http://md.incommon.org/InCommon/InCommon-metadata.xml"
+    },
+    "IncommonMetadataCertificate": {
+      "Description": "Certificate for InCommon signed metadata. Certificate found on InCommon's website at https://ds.incommon.org/certs/inc-md-cert.pem",
+      "Type": "String",
+      "NoEcho": true
+    },
+    "SPResolverCertificate": {
+      "Description": "Certificate used by service provider to encrypt communications and provide authentication. Note: This certificate must be supplied to InCommon as part of the service provider metadata.",
+      "Type": "String",
+      "NoEcho": true
+    },
+    "SPResolverKey": {
+      "Description": "Key used by service provider to encrypt communications and provide authentication",
+      "Type": "String",
+      "NoEcho": true
+    },
+    "ShibbolethSupportContact": {
+      "Description": "Shibboleth support contact email address",
+      "Type": "String",
+      "AllowedPattern": "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)",
+      "Default": "test@psu.edu",
+      "ConstraintDescription": "must be a valid email address."
+    },
+    "OperatorEmail": {
+      "Description": "Email address to notify if there are any scaling operations",
+      "Type": "String",
+      "AllowedPattern": "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)",
+      "ConstraintDescription": "must be a valid email address."
+    },
+    "ShibbolethSharedSessionDatabaseConnectionString": {
+      "Description": "Database connection string if planning to have a shibboleth session shared across multiple instances. To read more about shared sessions, visit https://uit.stanford.edu/service/shibboleth/sp/sharedsession. If left blank each instance will  Example: DRIVER=MySQL;SERVER=mysql-apps.stanford.edu;DATABASE=s_shib_testsp;USER=s_shib_testsp;PASSWORD=**********",
+      "Type": "String",
+      "NoEcho": true
+    },
+    "SecurePaths": {
+      "Description": "A list (seperated by commas) of paths protected by Shibboleth. Defaults to /secure",
+      "Default": "/secure",
+      "Type": "CommaDelimitedList"
+    },
+    "VpcID": {
+      "Description": "The VPC ARN (Example: vpc-999abc99) where host will launch",
+      "ConstraintDescription": "A valid vpc arn is required",
+      "Type": "AWS::EC2::VPC::Id"
+    },
+    "SecurityGroups": {
+      "Description": "Security groups (seperated by ',') that will be applied to instances launched under the launch configuration. Note: Security groups must be in the same vpc specified in the VpcID parameter.",
+      "Type": "List<AWS::EC2::SecurityGroup::Id>"
+    },
+    "AvailabilityZones": {
+      "Description": "A list of availability zones (seperated by ',') that instances will launch against. If none specified, all availability zones in a specific region will be used",
+      "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+    }
+  },
+  "Conditions": {
+    "EnableShibbolethSharedSession": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ShibbolethSharedSessionDatabaseConnectionString"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "EnableSSLHandler": {
+      "Fn::Equals": [
+        {
+          "Ref": "Scheme"
+        },
+        "HTTPS"
+      ]
+    }
+  },
+  "Mappings": {
+    "AWSInstanceType2Arch": {
+      "t1.micro": {
+        "Arch": "PV64"
+      },
+      "t2.nano": {
+        "Arch": "HVM64"
+      },
+      "t2.micro": {
+        "Arch": "HVM64"
+      },
+      "t2.small": {
+        "Arch": "HVM64"
+      },
+      "t2.medium": {
+        "Arch": "HVM64"
+      },
+      "t2.large": {
+        "Arch": "HVM64"
+      },
+      "m1.small": {
+        "Arch": "PV64"
+      },
+      "m1.medium": {
+        "Arch": "PV64"
+      },
+      "m1.large": {
+        "Arch": "PV64"
+      },
+      "m1.xlarge": {
+        "Arch": "PV64"
+      },
+      "m2.xlarge": {
+        "Arch": "PV64"
+      },
+      "m2.2xlarge": {
+        "Arch": "PV64"
+      },
+      "m2.4xlarge": {
+        "Arch": "PV64"
+      },
+      "m3.medium": {
+        "Arch": "HVM64"
+      },
+      "m3.large": {
+        "Arch": "HVM64"
+      },
+      "m3.xlarge": {
+        "Arch": "HVM64"
+      },
+      "m3.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "m4.large": {
+        "Arch": "HVM64"
+      },
+      "m4.xlarge": {
+        "Arch": "HVM64"
+      },
+      "m4.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "m4.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "m4.10xlarge": {
+        "Arch": "HVM64"
+      },
+      "c1.medium": {
+        "Arch": "PV64"
+      },
+      "c1.xlarge": {
+        "Arch": "PV64"
+      },
+      "c3.large": {
+        "Arch": "HVM64"
+      },
+      "c3.xlarge": {
+        "Arch": "HVM64"
+      },
+      "c3.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "c3.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "c3.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "c4.large": {
+        "Arch": "HVM64"
+      },
+      "c4.xlarge": {
+        "Arch": "HVM64"
+      },
+      "c4.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "c4.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "c4.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "g2.2xlarge": {
+        "Arch": "HVMG2"
+      },
+      "g2.8xlarge": {
+        "Arch": "HVMG2"
+      },
+      "r3.large": {
+        "Arch": "HVM64"
+      },
+      "r3.xlarge": {
+        "Arch": "HVM64"
+      },
+      "r3.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "r3.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "r3.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "i2.xlarge": {
+        "Arch": "HVM64"
+      },
+      "i2.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "i2.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "i2.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "d2.xlarge": {
+        "Arch": "HVM64"
+      },
+      "d2.2xlarge": {
+        "Arch": "HVM64"
+      },
+      "d2.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "d2.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "hi1.4xlarge": {
+        "Arch": "HVM64"
+      },
+      "hs1.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "cr1.8xlarge": {
+        "Arch": "HVM64"
+      },
+      "cc2.8xlarge": {
+        "Arch": "HVM64"
+      }
+    },
+    "AWSRegionArch2AMI": {
+      "us-east-1": {
+        "PV64": "ami-22111148",
+        "HVM64": "ami-08111162",
+        "HVMG2": "ami-ebcec381"
+      },
+      "us-west-2": {
+        "PV64": "ami-792bc219",
+        "HVM64": "ami-c229c0a2",
+        "HVMG2": "ami-0f28c06f"
+      },
+      "us-west-1": {
+        "PV64": "ami-0e087a6e",
+        "HVM64": "ami-1b0f7d7b",
+        "HVMG2": "ami-ab9defcb"
+      }
+    }
+  },
+  "Resources": {
+    "NotificationTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "Subscription": [
+          {
+            "Endpoint": {
+              "Ref": "OperatorEmail"
+            },
+            "Protocol": "email"
+          }
+        ]
+      }
+    },
+    "WebServerIAMRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": []
+      }
+    },
+    "WebServerInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "WebServerIAMRole"
+          }
+        ]
+      }
+    },
+    "WebServerLaunchConfiguration": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "KeyName": {
+          "Ref": "KeyPair"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2Arch",
+                {
+                  "Ref": "InstanceType"
+                },
+                "Arch"
+              ]
+            }
+          ]
+        },
+        "SecurityGroups": {
+          "Ref": "SecurityGroups"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "IamInstanceProfile": {
+          "Ref": "WebServerInstanceProfile"
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -xe\n",
+                "yum update -y aws-cfn-bootstrap\n",
+                "yum update -y\n",
+                "\n",
+                "/opt/aws/bin/cfn-init -v ",
+                " --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                " --resource WebServerLaunchConfiguration ",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " --configsets \"setup-shibboleth\"\n"
+              ]
+            ]
+          }
+        }
+      },
+      "Metadata": {
+        "Comment": "Launch configuration to instantiate web server instances configured as a shibboleth service provider",
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "setup-shibboleth": [
+              "setup_httpd_daemon",
+              "setup_shibboleth_repo",
+              "setup_shibboleth_packages"
+            ],
+            "setup-shibboleth-sharedsession": [
+              {"ConfigSet": "setup-shibboleth"},
+              "setup_shibboleth_sharedsession_packages"
+            ]
+          },
+          "setup_httpd_daemon": {
+            "packages": {
+              "yum": {
+                "httpd24.x86_64": [],
+                "httpd24-devel.x86_64": [],
+                "httpd24-manual.noarch": [],
+                "httpd24-tools.x86_64": []
+              }
+            }
+          },
+          "setup_shibboleth_repo": {
+            "commands": {
+              "01_curl_shibboleth_repo_file_to_yum": {
+                "command": "curl  http://download.opensuse.org/repositories/security://shibboleth/RHEL_6/security:shibboleth.repo -o /etc/yum.repos.d/security.repo"
+              },
+              "02_clean_yum": {
+                "command": "yum clean all"
+              },
+              "03_import_GPG_key": {
+                "command": "rpm --import http://download.opensuse.org/repositories/security:/shibboleth/RHEL_6//repodata/repomd.xml.key"
+              }
+            }
+          },
+          "setup_shibboleth_packages": {
+            "packages": {
+              "yum": {
+                "shibboleth.x86_64": [],
+                "shibboleth-debuginfo.x86_64": []
+              }
+            }
+          },
+          "setup_shibboleth_sharedsession_packages": {
+            "packages": {
+              "yum": {
+                "mysql": [],
+                "unixODBC": []
+              }
+            }
+          },
+          "configure_shibboleth": {
+            "files": {
+              "/etc/shibboleth/InCommon-metadata.xml": {
+                "source": {
+                  "Ref": "IncommonMetadataProviderURL"
+                },
+                "mode": "00660",
+                "owner": "shibd",
+                "group": "shibd"
+              },
+              "/etc/shibboleth/inc-md-cert.pem": {
+                "source": {
+                  "Ref": "IncommonMetadataCertificate"
+                },
+                "mode": "00440",
+                "owner": "shibd",
+                "group": "shibd"
+              },
+              "/etc/shibboleth/sp-key.pem": {
+                "content": {
+                  "Ref": "SPResolverKey"
+                },
+                "mode": "00440",
+                "owner": "shibd",
+                "group": "shibd"
+              },
+              "/etc/shibboleth/sp-cert.pem": {
+                "content": {
+                  "Ref": "SPResolverCertificate"
+                },
+                "mode": "00440",
+                "owner": "shibd",
+                "group": "shibd"
+              },
+              "/etc/shibboleth/shibboleth2.xml": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "<SPConfig xmlns=\"urn:mace:shibboleth:2.0:native:sp:config\" ",
+                      "xmlns:conf=\"urn:mace:shibboleth:2.0:native:sp:config\" ",
+                      "xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\" ",
+                      "xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" ",
+                      "xmlns:md=\"urn:oasis:names:tc:SAML:2.0:metadata\" ",
+                      "clockSkew=\"180\">\n",
+                      "<!--\n",
+                      "By default, in-memory StorageService, ReplayCache, ArtifactMap, \n",
+                      "and SessionCache are used. See example-shibboleth2.xml for samples \n",
+                      "of explicitly configuring them.\n",
+                      "-->\n",
+                      {
+                        "Fn::If": [
+                          "EnableShibbolethSharedSession",
+                          {
+                            "Fn::Join": [
+                              "",
+                              [
+                                "<OutOfProcess logger=\"shibd.logger\">\n",
+                                "\t<Extensions>\n",
+                                "\t\t<Library path=\"odbc-store.so\" fatal=\"true\"/>\n",
+                                "\t</Extensions>\n",
+                                "</OutOfProcess>\n",
+                                "\n",
+                                "\n",
+                                "<StorageService type=\"ODBC\" id=\"mysql\" cleanupInterval=\"900\">\n",
+                                "\t<ConnectionString>\n",
+                                "\t\t",
+                                {
+                                  "Ref": "ShibbolethSharedSessionDatabaseConnectionString"
+                                },
+                                "\n",
+                                "\t</ConnectionString>\n",
+                                "</StorageService>\n",
+                                "<SessionCache type=\"StorageService\" cacheTimeout=\"28000\" StorageService=\"mysql\" />\n",
+                                "<ReplayCache StorageService=\"mysql\"/>\n",
+                                "<ArtifactMap StorageService=\"mysql\" artifactTTL=\"180\"/>\n",
+                                "\n",
+                                "\n"
+                              ]
+                            ]
+                          },
+                          "\n"
+                        ]
+                      },
+                      "\n",
+                      "<!--\n",
+                      "To customize behavior for specific resources on Apache, and to link vhosts or \n",
+                      "resources to ApplicationOverride settings below, use web server options/commands. \n",
+                      "See https://wiki.shibboleth.net/confluence/display/SHIB2/NativeSPConfigurationElements for help.\n",
+                      "\n",
+                      "\n",
+                      "For examples with the RequestMap XML syntax instead, see the example-shibboleth2.xml file, and the\n",
+                      "https://wiki.shibboleth.net/confluence/display,SHIB2/NativeSPRequestMapHowTo topic.\n",
+                      "-->\n",
+                      "<ApplicationDefaults entityID=\"",
+                      {
+                        "Ref": "ShibbolethSPEntityID"
+                      },
+                      "\" REMOTE_USER=\"",
+                      {
+                        "Ref": "RemoteUserAttributeIdentifiers"
+                      },
+                      "\">\n",
+                      "\n",
+                      "\n",
+                      "\t<!--\n",
+                      "\tControls session lifetimes, address checks, cookie handling, and the protocol handlers.\n",
+                      "\tYou MUST supply an effectively unique handlerURL value for each of your applications.\n",
+                      "\tThe value defaults to /Shibboleth.sso, and should be a relative path, with the SP computing\n",
+                      "\ta relative value based on the virtual host. Using handlerSSL=\"true\", the default, will force\n",
+                      "\tthe protocol to be https. You should also set cookieProps to \"https\" for SSL-only sites.\n",
+                      "\tNote that while we default checkAddress to \"false\", this has a negative impact on the\n",
+                      "\tsecurity of your site. Stealing sessions via cookie theft is much easier with this disabled.\n",
+                      "\t-->\n",
+                      "\t<Sessions lifetime=\"28800\" timeout=\"3600\" ",
+                      "relayState=\"",
+                      {
+                        "Fn::If": [
+                          "EnableShibbolethSharedSession",
+                          "ss:mysql",
+                          "ss:mem"
+                        ]
+                      },
+                      "\" ",
+                      "checkAddress=\"false\" handlerSSL=\"",
+                      {
+                        "Fn::If": [
+                          "EnableSSLHandler",
+                          "true",
+                          "false"
+                        ]
+                      },
+                      "\" cookieProps=\"",
+                      {
+                        "Ref": "Scheme"
+                      },
+                      "\">\n",
+                      "\n",
+                      "\n",
+                      "\t\t<!--\n",
+                      "\t\tConfigures SSO for a default IdP. To allow for >1 Idp, remove entityID property and adjust discoveryURL to point to discovery service.\n",
+                      "\t\t(Set discoveryProtocol to \"WAYF\" for legacy Shibboleth WAYF support.)\n",
+                      "You can also override entityID on /Login query string, or in RequestMap/htaccess.\n",
+                      "\t\t-->\n",
+                      "\t\t<SSO entityID=\"",
+                      {
+                        "Ref": "IDPEntityID"
+                      },
+                      "\" discoveryProtocol=\"SAMLDS\" discoveryURL=\"https://ds.example.org/DS/WAYF\">\n",
+                      "\t\t\tSAML2 SAML1\n",
+                      "\t\t</SSO>",
+                      "\n",
+                      "\n",
+                      "\t\t<!-- SAML and local-only logout. -->\n",
+                      "\t\t<Logout>SAML2 Local</Logout>\n",
+                      "\n",
+                      "\n",
+                      "\t\t<!-- Extension service that generates \"approximate\" metadata based on SP configuration. -->\n",
+                      "\t\t<Handler type=\"MetadataGenerator\" Location=\"/Metadata\" signing=\"false\"/>\n",
+                      "\n",
+                      "\n",
+                      "\t\t<!-- Status reporting service. -->\n",
+                      "\t\t<Handler type=\"Status\" Location=\"/Status\" acl=\"127.0.0.1 ::1\"/>\n",
+                      "\n",
+                      "\n",
+                      "\t\t<!-- Session diagnostic service. -->\n",
+                      "\t\t<Handler type=\"Session\" Location=\"/Session\" showAttributeValues=\"false\"/>\n",
+                      "\n",
+                      "\n",
+                      "\t\t<!-- JSON feed of discovery information. -->\n",
+                      "t\t<Handler type=\"DiscoveryFeed\" Location=\"/DiscoFeed\"/>\n",
+                      "\t\t</Sessions>",
+                      "\n",
+                      "\n",
+                      "\t<!--\n",
+                      "\tAllows overriding of error template information/filenames. You can\n",
+                      "\talso add attributes with values that can be plugged into the templates.\n",
+                      "\t-->\n",
+                      "\t<Errors supportContact=\"",
+                      {
+                        "Ref": "ShibbolethSupportContact"
+                      },
+                      "\">\n",
+                      "\t\thelpLocation=\"/about.html\"\n",
+                      "\t\tstyleSheet=\"/shibboleth-sp/main.css\"/>\n",
+                      "\n",
+                      "\t<MetadataProvider type=\"XML\" validate=\"true\"\n",
+                      "\t\turi=\"",
+                      {
+                        "Ref": "IncommonMetadataProviderURL"
+                      },
+                      "\n",
+                      "\t\tbackingFilePath=\"federation-metadata.xml\" reloadInterval=\"7200\">\n",
+                      "\t\t<MetdataFilter type=\"RequireValidUntil\" maxValidityInterval=\"2419200\"/>\n",
+                      "\t\t<MetdataFilter type=\"Signature\" certificate=\"inc-md-cert.pem\"/>\n",
+                      "\t\t<DiscoveryFilter type=\"Blacklist\" matcher=\"EntityAttributes\" trimTags=\"true\"\n",
+                      "\t\t\tattributeName=\"http://macedir.org/entity-category\n",
+                      "\t\t\tattributeNameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\"\n",
+                      "\t\t\tattributeValue=\"http://refeds.org/category/hide-from-discovery\" />\n",
+                      "\t</MetadataProvider>\n",
+                      "\t<!-- Example of locally maintained metadata. -->\n",
+                      "\t<!-- \n",
+                      "\t<MetadataProvider type=\"XML\" validate=\"true\" file=\"partner-metadata.xml\"/>\n",
+                      "\t-->\n",
+                      "\n",
+                      "\t<!-- Map to extract attributes from SAML assertions. -->\n",
+                      "\t<AttributeExtractor type=\"XML\" validate=\"true\" reloadChanges=\"false\" path=\"attribute-map.xml\"/>\n",
+                      "\n",
+                      "\n",
+                      "\t<!-- Use a SAML query if no attributes are supplied during SSO. -->\n",
+                      "\t<AttributeResolver type=\"Query\" subjectMatch=\"true\"/>\n",
+                      "\n",
+                      "<!-- Default filtering policy for recognized attributes, lets other data pass. -->\n",
+                      "<AttributeFilter type=\"XML\" validate=\"true\" path=\"attribute-policy.xml\"/>\n",
+                      "\n",
+                      "<!-- Simple file-based resolver for using a single keypair. -->\n",
+                      "<CredentialResolver type=\"File\" key=\"sp-key.pem\" certificate=\"sp-cert.pem\"/>\n",
+                      "\n",
+                      "\n",
+                      "<!--\n",
+                      "The default settings can be overridden by creating ApplicationOverride elements (see\n",
+                      "the https://wiki.shibboleth.net/confluence/display/SHIB2/NativeSPApplicationOverride\n",
+                      "topic).\n",
+                      "Resource requests are mapped by web server commands, or the RequestMapper, to an\n",
+                      "applicationId setting.\n",
+                      "\n",
+                      "Example of a second application (for a second vhost) that has a different entityID.\n",
+                      "Resources on the vhost would map to an applicationId of \"admin\":\n",
+                      "-->\n",
+                      "<!--\n",
+                      "<ApplicationOverride id=\"admin\" entityID=\"https://admin.example.org/shibboleth\"/>\n",
+                      "-->\n",
+                      "</ApplicationDefaults>",
+                      "\n",
+                      "\n",
+                      "<!-- Policies that determine how to process and authenticate runtime messages. -->\n",
+                      "<SecurityPolicyProvider type=\"XML\" validate=\"true\" path=\"security-policy.xml\"/>\n",
+                      "<!-- Low-level configuration about protocols and bindings available for use. -->\n",
+                      "<ProtocolProvider type=\"XML\" validate=\"true\" reloadChanges=\"false\" path=\"protocols.xml\"/>\n",
+                      "\n",
+                      "</SPConfig>"
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

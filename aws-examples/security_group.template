@@ -1,0 +1,90 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Metadata": {
+    "AWS::CloudFormation::Designer": {
+      "9b98951b-58da-4538-99ac-3ddff1787a77": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 361,
+          "y": 99
+        },
+        "z": 0,
+        "embeds": [],
+        "ismemberof": [
+          "46bda021-9d9a-4a6d-9a8e-3d79863419ae"
+        ]
+      },
+      "46bda021-9d9a-4a6d-9a8e-3d79863419ae": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 200,
+          "y": 100
+        },
+        "z": 0,
+        "embeds": []
+      },
+      "3825dbb3-6184-49ad-b88a-5eea83d4cd44": {
+        "source": {
+          "id": "9b98951b-58da-4538-99ac-3ddff1787a77"
+        },
+        "target": {
+          "id": "46bda021-9d9a-4a6d-9a8e-3d79863419ae"
+        },
+        "z": 1
+      }
+    }
+  },
+  "Resources": {
+    "I3LGO6": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "SecurityGroupIds": [
+          {
+            "Ref": "SG429AK"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "9b98951b-58da-4538-99ac-3ddff1787a77"
+        }
+      }
+    },
+    "SG429AK": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Allow http to client host",
+        "VpcId": {
+          "Ref": "myVPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "46bda021-9d9a-4a6d-9a8e-3d79863419ae"
+        }
+      }
+    }
+  }
+}
